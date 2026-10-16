@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Execution Protocol — Interactive Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
+<style>
+  :root{
+    --black:#08080a;
+    --panel:#121214;
+    --panel-2:#1a1a1e;
+    --yellow:#ffd359;
+    --yellow-glow:rgba(255,211,89,0.18);
+    --paper:#f6f2e9;
+    --white:#f4f4f6;
+    --gray:#8d8b92;
+    --line:rgba(255,211,89,0.16);
+    --green:#4fd482;
+    --red:#ff6a5c;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--black);
+    color:var(--white);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{
+    font-family:'Archivo Black',sans-serif;
+    text-transform:uppercase;
+    letter-spacing:0.01em;
+    line-height:1.05;
+  }
+  .mono{font-family:'JetBrains Mono',monospace;}
+  a{color:inherit;}
+  .wrap{max-width:980px;margin:0 auto;padding:0 24px;}
+
+  /* FOUNDER CTA TOP BAR */
+  .top-banner{
+    background:linear-gradient(90deg, #1b1605 0%, #2b1f06 50%, #1b1605 100%);
+    border-bottom:1px solid rgba(255,211,89,0.25);
+    padding:10px 16px;
+    font-size:13px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:10px;
+    position:relative;
+    z-index:60;
+  }
+  .banner-cta-btn{
+    background:var(--yellow);
+    color:var(--black);
+    font-weight:700;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    padding:6px 14px;
+    border-radius:100px;
+    text-decoration:none;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    cursor:pointer;
+    border:none;
+    transition:transform .15s ease, filter .15s ease;
+  }
+  .banner-cta-btn:hover{filter:brightness(1.1);transform:translateY(-1px);}
+
+  /* NAV */
+  nav{
+    position:sticky;top:0;z-index:50;
+    background:rgba(8,8,10,0.92);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .navrow{
+    max-width:980px;margin:0 auto;padding:14px 24px;
+    display:flex;align-items:center;justify-content:space-between;
+    gap:16px;flex-wrap:wrap;
+  }
+  .logo{font-family:'Archivo Black',sans-serif;font-size:20px;letter-spacing:0.02em;display:flex;align-items:center;gap:8px;}
+  .logo-tag{font-size:10px;font-family:'JetBrains Mono',monospace;padding:2px 8px;border-radius:100px;background:var(--yellow-glow);color:var(--yellow);border:1px solid var(--line);}
+  .tabs{display:flex;gap:4px;flex-wrap:wrap;}
+  .tab-btn{
+    background:none;border:1px solid transparent;color:var(--gray);
+    font-family:'Inter',sans-serif;font-weight:600;font-size:12.5px;
+    text-transform:uppercase;letter-spacing:0.04em;
+    padding:8px 14px;border-radius:100px;cursor:pointer;
+    transition:all .15s ease;
+  }
+  .tab-btn:hover{color:var(--white);}
+  .tab-btn.active{background:var(--yellow);color:var(--black);}
+
+  section.view{display:none;padding:48px 0 90px;}
+  section.view.active{display:block;animation:fadein .25s ease;}
+  @keyframes fadein{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+  /* HERO */
+  .hero{padding:36px 0 20px;border-bottom:1px solid var(--line);margin-bottom:36px;}
+  .eyebrow{color:var(--yellow);font-size:11.5px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;margin-bottom:14px;display:inline-block;}
+  .hero h1{font-size:clamp(36px,6vw,60px);margin:0 0 12px;}
+  .hero p.sub{color:var(--gray);font-size:16px;max-width:540px;line-height:1.6;margin:0 0 28px;}
+
+  /* signature clock widget */
+  .clockcard{
+    display:flex;align-items:center;gap:28px;flex-wrap:wrap;
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:22px 28px;
+    box-shadow:0 12px 30px rgba(0,0,0,0.5);
+  }
+  .clockface{width:90px;height:90px;flex:none;}
+  .clockstatus .label{font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:4px;}
+  .clockstatus .time{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;}
+  .clockstatus .msg{font-size:13.5px;margin-top:6px;font-weight:600;}
+  .msg.ok{color:var(--green);}
+  .msg.warn{color:var(--red);}
+
+  /* generic cards */
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:24px;margin-bottom:20px;
+  }
+  .card h3{font-size:18px;margin:0 0 10px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  @media(max-width:640px){.grid2{grid-template-columns:1fr;}}
+
+  /* ROI Card */
+  .roi-box{
+    background:linear-gradient(145deg, #161512 0%, #1c180e 100%);
+    border:1px solid var(--line);border-radius:14px;padding:26px;margin-bottom:24px;
+  }
+  .roi-stat-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:16px;margin-top:16px;}
+  .roi-stat{background:var(--panel);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:16px;text-align:center;}
+  .roi-val{font-family:'Archivo Black',sans-serif;font-size:26px;color:var(--yellow);margin-bottom:4px;}
+  .roi-desc{font-size:12px;color:var(--gray);}
+
+  /* forms */
+  label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray);margin:16px 0 6px;font-weight:700;}
+  label:first-child{margin-top:0;}
+  input[type=text],input[type=email],input[type=password],textarea{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+    color:var(--white);font-family:'Inter',sans-serif;font-size:14px;padding:11px 13px;
+  }
+  input:focus,textarea:focus{outline:none;border-color:var(--yellow);}
+  button.primary{
+    background:var(--yellow);color:var(--black);border:none;border-radius:100px;
+    font-weight:700;font-size:14px;padding:12px 24px;cursor:pointer;margin-top:20px;
+    text-transform:uppercase;letter-spacing:0.04em;
+  }
+  button.primary:hover{filter:brightness(1.08);}
+  button.primary:disabled{background:#303034;color:#777;cursor:not-allowed;}
+  button.ghost{
+    background:none;border:1px solid var(--line);color:var(--gray);border-radius:100px;
+    font-size:12px;padding:7px 15px;cursor:pointer;
+  }
+  button.ghost:hover{color:var(--white);border-color:var(--yellow);}
+
+  .slot-status{
+    display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;
+    padding:4px 10px;border-radius:100px;text-transform:uppercase;letter-spacing:0.04em;
+  }
+  .slot-status.done{background:rgba(79,212,130,0.14);color:var(--green);}
+  .slot-status.open{background:rgba(255,211,89,0.14);color:var(--yellow);}
+
+  /* entries */
+  .entry{
+    background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--yellow);
+    border-radius:10px;padding:16px 18px;margin-bottom:12px;
+  }
+  .entry.late{border-left-color:var(--red);}
+  .entry-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+  .entry-name{font-weight:700;font-size:15px;}
+  .entry-meta{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--gray);}
+  .badge{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;padding:3px 9px;border-radius:100px;}
+  .badge.ontime{background:rgba(79,212,130,0.14);color:var(--green);}
+  .badge.late{background:rgba(255,106,92,0.14);color:var(--red);}
+  .entry-body{font-size:13.5px;color:#d8d5cd;line-height:1.5;}
+  .entry-points{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--yellow);font-size:14px;white-space:nowrap;}
+
+  /* leaderboard */
+  .lb-row{display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--line);}
+  .lb-rank{font-family:'Archivo Black',sans-serif;font-size:20px;color:var(--gray);width:32px;flex:none;}
+  .lb-rank.top{color:var(--yellow);}
+  .lb-name{flex:1;font-weight:700;font-size:15px;}
+  .lb-bar-wrap{flex:2;background:var(--panel-2);border-radius:100px;height:8px;overflow:hidden;}
+  .lb-bar{height:100%;background:var(--yellow);border-radius:100px;}
+  .lb-pts{font-family:'JetBrains Mono',monospace;font-weight:700;width:70px;text-align:right;flex:none;}
+
+  /* modal */
+  .modal-overlay{
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);
+    z-index:100;align-items:center;justify-content:center;padding:20px;
+  }
+  .modal{
+    background:#121215;border:1px solid var(--yellow);border-radius:16px;
+    max-width:520px;width:100%;padding:32px;position:relative;
+    box-shadow:0 20px 50px rgba(0,0,0,0.7);
+  }
+  .modal-close{position:absolute;top:16px;right:18px;background:none;border:none;color:var(--gray);font-size:22px;cursor:pointer;}
+  .modal-close:hover{color:var(--white);}
+
+  /* CONSISTENCY MATRIX & CALENDAR */
+  .cal-wrap{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:24px;}
+  .cal-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px;}
+  .cal-stats{display:flex;gap:10px;flex-wrap:wrap;}
+  .cal-pill{background:var(--panel-2);border:1px solid var(--line);padding:6px 14px;border-radius:100px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7, 1fr);gap:8px;}
+  .cal-head-day{text-align:center;font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:0.06em;padding-bottom:6px;}
+  .cal-cell{
+    background:var(--panel-2);border:1px solid rgba(255,255,255,0.05);border-radius:10px;
+    min-height:56px;padding:7px 5px;display:flex;flex-direction:column;justify-content:space-between;align-items:center;
+    transition:transform .15s ease, border-color .15s ease;
+  }
+  .cal-cell:hover{transform:translateY(-2px);border-color:var(--yellow);}
+  .cal-cell .date-num{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--gray);}
+  .cal-cell .icon{font-size:15px;line-height:1;font-weight:700;}
+  .cal-cell.ontime{background:rgba(79,212,130,0.08);border-color:rgba(79,212,130,0.35);}
+  .cal-cell.ontime .icon{color:var(--green);}
+  .cal-cell.late{background:rgba(255,211,89,0.08);border-color:rgba(255,211,89,0.35);}
+  .cal-cell.late .icon{color:var(--yellow);}
+  .cal-cell.missed{background:rgba(255,106,92,0.08);border-color:rgba(255,106,92,0.35);}
+  .cal-cell.missed .icon{color:var(--red);}
+  .cal-cell.rest{background:rgba(255,255,255,0.02);border-color:transparent;}
+  .cal-cell.rest .icon{font-size:13px;opacity:0.6;}
+  .cal-cell.today{border:2px solid var(--yellow);box-shadow:0 0 12px rgba(255,211,89,0.25);}
+  .cal-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--gray);margin-top:16px;padding-top:14px;border-top:1px dashed var(--line);}
+  .cal-legend span{display:inline-flex;align-items:center;gap:6px;}
+
+  footer{border-top:1px solid var(--line);padding:36px 0;text-align:center;color:var(--gray);font-size:12px;}
+</style>
+</head>
+<body>
+
+<!-- TOP STICKY PROSPECT CONVERSION BAR -->
+<div class="top-banner">
+  <div>
+    ⚡ <b>Founder & Manager Preview:</b> Experience the daily execution protocol that eliminates client churn and drives outbound output.
+  </div>
+  <div>
+    <button class="banner-cta-btn" onclick="openDeployModal()">
+      Launch For Your Team →
+    </button>
+  </div>
+</div>
+
+<nav>
+  <div class="navrow">
+    <div class="logo">
+      EXECUTION<span>.</span>
+      <span class="logo-tag">INTERACTIVE DEMO</span>
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="home">Overview</button>
+      <button class="tab-btn" data-tab="clockin">Test Clock In</button>
+      <button class="tab-btn" data-tab="log">Live Feed</button>
+      <button class="tab-btn" data-tab="leaderboard">Leaderboard</button>
+      <button class="tab-btn" data-tab="matrix">Consistency Matrix</button>
+      <button class="tab-btn" data-tab="calculator">Retention ROI</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ================= OVERVIEW ================= -->
+<section id="home" class="view active">
+  <div class="wrap">
+    <div class="hero">
+      <span class="eyebrow">The Proof-of-Execution Protocol</span>
+      <h1>Turn passive lurkers<br>into daily closers.</h1>
+      <p class="sub">
+        Most paid communities and remote sales teams suffer a 15–30% monthly churn because passive consumption breeds guilt. We replace silence with daily public commitments, verified proof of work, and peer recognition.
+      </p>
+
+      <div class="clockcard">
+        <svg class="clockface" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="46" fill="var(--panel-2)" stroke="var(--line)" stroke-width="2"/>
+          <line id="hourHand" x1="50" y1="50" x2="50" y2="28" stroke="var(--yellow)" stroke-width="3" stroke-linecap="round"/>
+          <line id="minHand" x1="50" y1="50" x2="50" y2="20" stroke="var(--white)" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="50" cy="50" r="3" fill="var(--yellow)"/>
+        </svg>
+        <div class="clockstatus">
+          <div class="label">Live Protocol Clock</div>
+          <div class="time mono" id="liveTime">--:--:--</div>
+          <div class="msg" id="liveMsg">Checking execution window…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PSYCHOLOGICAL VALUE PILLARS -->
+    <div class="grid2">
+      <div class="card">
+        <h3 style="color:var(--yellow);">☀️ 1. Morning Commitment (Before 8:10 AM)</h3>
+        <p style="color:#d8d5cd;font-size:14px;line-height:1.6;">
+          Forces members to declare their top 2 non-negotiable priorities on public record. Late entries lose points. Urgency creates instant morning momentum.
+        </p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--yellow);">🌙 2. Evening Proof of Work (Before 8:10 PM)</h3>
+        <p style="color:#d8d5cd;font-size:14px;line-height:1.6;">
+          No unverified checkmarks. Members must upload deliverables, screenshots, or verified CRM links alongside their lessons learned.
+        </p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--yellow);">💬 3. One-Click Squad Routing</h3>
+        <p style="color:#d8d5cd;font-size:14px;line-height:1.6;">
+          Each clock-in instantly copies formatted updates directly into their peer WhatsApp or Discord squads with 1 click, driving viral peer accountability.
+        </p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--yellow);">🏆 4. Status as the Prize</h3>
+        <p style="color:#d8d5cd;font-size:14px;line-height:1.6;">
+          The top scorer on the monthly leaderboard is handed the microphone at the General Session. Ambitious members compete for status, not cheap swag.
+        </p>
+      </div>
+    </div>
+
+    <!-- CTA BANNER IN CONTENT -->
+    <div class="roi-box" style="text-align:center;margin-top:20px;">
+      <h2 style="margin:0 0 8px;font-size:24px;">Test drive the member experience</h2>
+      <p style="color:var(--gray);font-size:14px;max-width:480px;margin:0 auto 20px;">
+        Head over to the <b>"Test Clock In"</b> tab to create an instant demo session and submit your first priority.
+      </p>
+      <button class="primary" onclick="switchToTab('clockin')" style="margin-top:0;">Test Clock In Now →</button>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CLOCK IN ================= -->
+<section id="clockin" class="view">
+  <div class="wrap">
+    <!-- EMAIL CAPTURE -->
+    <div class="card" id="demoAuthCard">
+      <h3>Enter Test Drive</h3>
+      <p style="color:var(--gray);font-size:14px;">Sign in below to test the clock-in mechanism as a member. Your entries will appear live on the Community Log.</p>
+      <form id="leadForm">
+        <label>Your Name</label>
+        <input type="text" id="leadName" placeholder="e.g. Alex Morgan" required>
+        <label>Your Work Email (We'll send your test summary)</label>
+        <input type="email" id="leadEmail" placeholder="alex@company.com" required>
+        <button class="primary" type="submit" id="startDemoBtn">Start Interactive Test →</button>
+      </form>
+    </div>
+
+    <!-- ACTIVE TESTER AREA -->
+    <div id="demoActiveArea" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+        <div>Testing as: <b id="currentTesterName" style="color:var(--yellow);">Tester</b></div>
+        <button class="ghost" onclick="resetDemoUser()">Switch Test User</button>
+      </div>
+
+      <!-- PERSONAL ATTENDANCE & STREAK CALENDAR -->
+      <div class="cal-wrap">
+        <div class="cal-header">
+          <div>
+            <h3 style="margin:0 0 4px;font-size:16px;">📅 Your 30-Day Consistency Streak</h3>
+            <span style="font-size:12px;color:var(--gray);">Green = On-time before 8:10. Yellow = Late. Red = Missed day. Grey = Sunday rest.</span>
+          </div>
+          <div class="cal-stats">
+            <span class="cal-pill">🔥 Streak: <b style="color:var(--yellow);" id="personalStreakDays">8 Days</b></span>
+            <span class="cal-pill">⚡ On-Time: <b style="color:var(--green);" id="personalOnTimeRate">92%</b></span>
+          </div>
+        </div>
+        <div class="cal-grid" id="personalCalGrid"></div>
+        <div class="cal-legend">
+          <span><b style="color:var(--green);">✓</b> On-Time</span>
+          <span><b style="color:var(--yellow);">⚠</b> Late</span>
+          <span><b style="color:var(--red);">✕</b> Missed</span>
+          <span><b>🛌</b> Sunday Rest</span>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h3 style="margin:0;">☀️ Morning Clock-In</h3>
+            <span class="slot-status open" id="amStatus">Open</span>
+          </div>
+          <label>Today's top 2 priorities (one per line)</label>
+          <textarea id="amPriorities" rows="3" placeholder="1. Send 50 outbound cold DMs&#10;2. Finish client sales landing page"></textarea>
+          
+          <label>Time committing</label>
+          <input type="text" id="amTime" placeholder="e.g. 3 hours">
+
+          <button class="primary" id="demoAmSubmit" onclick="submitDemoCheckin('morning')">Clock In (Morning)</button>
+          <div id="amSharePreview" style="margin-top:14px;"></div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h3 style="margin:0;">🌙 Evening Clock-In</h3>
+            <span class="slot-status open" id="pmStatus">Open</span>
+          </div>
+          <label>What you completed (2+, one per line)</label>
+          <textarea id="pmAccomplished" rows="3" placeholder="1. Sent 54 DMs, booked 2 calls&#10;2. Published client review"></textarea>
+
+          <label>Proof of work (link or deliverable)</label>
+          <input type="text" id="pmProof" placeholder="https://loom.com/... or screenshot link">
+
+          <label>One lesson learned</label>
+          <input type="text" id="pmLesson" placeholder="What today taught you">
+
+          <button class="primary" id="demoPmSubmit" onclick="submitDemoCheckin('evening')">Clock In (Evening)</button>
+          <div id="pmSharePreview" style="margin-top:14px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= LOG ================= -->
+<section id="log" class="view">
+  <div class="wrap">
+    <h2 style="margin-top:0;">Live Execution Feed</h2>
+    <p style="color:var(--gray);font-size:14px;margin-top:-6px;">Every member's commitments and verified proof of work, broadcasted live.</p>
+    <div id="demoLogList"></div>
+  </div>
+</section>
+
+<!-- ================= LEADERBOARD ================= -->
+<section id="leaderboard" class="view">
+  <div class="wrap">
+    <h2 style="margin-top:0;">🏆 Monthly Winner Spotlight</h2>
+    <p style="color:var(--gray);font-size:14px;margin-top:-6px;">Top performer earns the mic at the monthly live call.</p>
+    <div class="card" id="demoLbCard"></div>
+  </div>
+</section>
+
+<!-- ================= CONSISTENCY MATRIX ================= -->
+<section id="matrix" class="view">
+  <div class="wrap">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:12px;margin-bottom:8px;">
+      <h2 style="margin:0;">Team Consistency Matrix</h2>
+      <span style="font-size:12px;color:var(--gray);">Radical Transparency · Zero Excuses</span>
+    </div>
+    <p style="color:var(--gray);font-size:14px;margin-top:0;line-height:1.5;">
+      Scroll through the entire team's 30-day daily consistency records. Green = on-time before 8:10. Yellow = late. Red = zero show. Inconsistent performers have nowhere to hide.
+    </p>
+
+    <div class="cal-legend" style="margin-bottom:24px;padding:12px 18px;background:var(--panel);border-radius:10px;border:1px solid var(--line);margin-top:14px;">
+      <span><b style="color:var(--green);">✓</b> On-Time (before 8:10)</span>
+      <span><b style="color:var(--yellow);">⚠</b> Late (after 8:10)</span>
+      <span><b style="color:var(--red);">✕</b> Missed (zero show)</span>
+      <span><b>🛌</b> Sunday Rest & Review</span>
+    </div>
+
+    <!-- SCROLLING LIST OF ALL MEMBERS' CALENDARS -->
+    <div id="matrixMemberList"></div>
+  </div>
+</section>
+
+<!-- ================= ROI CALCULATOR ================= -->
+<section id="calculator" class="view">
+  <div class="wrap">
+    <div class="roi-box">
+      <h2 style="margin:0 0 10px;">The Retention & Churn Math</h2>
+      <p style="color:var(--gray);font-size:14px;line-height:1.6;">
+        See what happens to your business when you turn passive lurkers into daily active executors:
+      </p>
+
+      <div style="margin:24px 0;">
+        <label>Number of paid members or sales reps:</label>
+        <input type="text" id="calcMembers" value="150" oninput="calculateROI()">
+
+        <label>Monthly membership fee / revenue per person ($):</label>
+        <input type="text" id="calcFee" value="99" oninput="calculateROI()">
+      </div>
+
+      <div class="roi-stat-grid">
+        <div class="roi-stat">
+          <div class="roi-val" id="roiSaved">$2,970</div>
+          <div class="roi-desc">Estimated Monthly Churn Saved (20% reduction)</div>
+        </div>
+        <div class="roi-stat">
+          <div class="roi-val" id="roiAnnual">$35,640</div>
+          <div class="roi-desc">Annual Recurring Revenue Preserved</div>
+        </div>
+        <div class="roi-stat">
+          <div class="roi-val">48 Hours</div>
+          <div class="roi-desc">Ready to Launch in 48 Hours</div>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin-top:28px;">
+        <button class="primary" onclick="openDeployModal()">Launch This For My Group →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MODAL: GET THIS FOR YOUR BUSINESS -->
+<div class="modal-overlay" id="deployModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeDeployModal()">×</button>
+    <h2 style="margin-top:0;font-size:22px;">Launch For Your Team</h2>
+    <p style="color:var(--gray);font-size:14px;line-height:1.6;">
+      We set up your custom-branded execution portal with your logo, domain, custom cutoff times, and WhatsApp/Discord squads in <b>48 hours</b>.
+    </p>
+
+    <div style="background:var(--panel-2);border-radius:10px;padding:16px;margin:20px 0;font-size:13.5px;">
+      <div>✅ <b>White-label portal</b> on your custom domain</div>
+      <div style="margin-top:6px;">✅ <b>Automated WhatsApp/Discord squad routing</b></div>
+      <div style="margin-top:6px;">✅ <b>Live leaderboard & monthly winner archives</b></div>
+      <div style="margin-top:6px;">✅ <b>Ongoing hosting, resets, & database maintenance</b></div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <a href="mailto:cdtfavour@gmail.com?subject=Inquiry:%20Custom%20Execution%20Portal%20Setup" class="primary" style="text-align:center;text-decoration:none;">
+        ✉️ Contact via Email (cdtfavour@gmail.com)
+      </a>
+      <a href="https://instagram.com/cdtfavour.builds" target="_blank" rel="noopener" class="ghost" style="text-align:center;text-decoration:none;padding:12px;">
+        💬 DM @cdtfavour.builds on Instagram
+      </a>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Execution Protocol Architecture &copy; 2026. Engineered by <b>CDT Favour Osagie</b>.
+</footer>
+
+<script>
+/* ============================================================
+   DEMO FIREBASE CONFIG — DEDICATED SEPARATE PROJECT
+   Do NOT use your live SYW credentials here.
+   Create a fresh, free Firebase project (e.g. 'protocol-demo')
+   and paste its config object below.
+   ============================================================ */
+const DEMO_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDOYQhbZVrxu1xN1k9vd753sXp3UvBeCAg",
+  authDomain: "fir-c58ef.firebaseapp.com",
+  projectId: "fir-c58ef",
+  storageBucket: "fir-c58ef.firebasestorage.app",
+  messagingSenderId: "1044160423988",
+  appId: "1:1044160423988:web:33098a82301d509f740261",
+  measurementId: "G-QC18PN21EG"
+};
+
+let db = null;
+const isDemoConfigured = DEMO_FIREBASE_CONFIG.apiKey && !DEMO_FIREBASE_CONFIG.apiKey.startsWith("PASTE_");
+if (isDemoConfigured) {
+  try {
+    firebase.initializeApp(DEMO_FIREBASE_CONFIG);
+    db = firebase.firestore();
+  } catch(e){}
+}
+
+/* TABS */
+function switchToTab(tabId){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  const btn = document.querySelector(`[data-tab="${tabId}"]`);
+  if (btn) btn.classList.add('active');
+  const view = document.getElementById(tabId);
+  if (view) view.classList.add('active');
+}
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> switchToTab(btn.dataset.tab));
+});
+
+/* MODAL */
+function openDeployModal(){ document.getElementById('deployModal').style.display = 'flex'; }
+function closeDeployModal(){ document.getElementById('deployModal').style.display = 'none'; }
+
+/* CLOCK */
+function pad(n){return n.toString().padStart(2,'0');}
+function updateClock(){
+  const now = new Date();
+  document.getElementById('liveTime').textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const h = now.getHours(), m = now.getMinutes();
+  const hourDeg = (h % 12) * 30 + m * 0.5;
+  const minDeg = m * 6;
+  const hHand = document.getElementById('hourHand');
+  const mHand = document.getElementById('minHand');
+  if (hHand) hHand.setAttribute('transform', `rotate(${hourDeg} 50 50)`);
+  if (mHand) mHand.setAttribute('transform', `rotate(${minDeg} 50 50)`);
+
+  const msg = document.getElementById('liveMsg');
+  if (h < 8 || (h===8 && m<10)) {
+    msg.textContent = "Morning Window Open (Full points for commitments)";
+    msg.className = "msg ok";
+  } else if (h >= 14 && h <= 20) {
+    msg.textContent = "Evening Window Open (Proof of work uploads)";
+    msg.className = "msg ok";
+  } else {
+    msg.textContent = "Live standby — system active";
+    msg.className = "msg ok";
+  }
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+/* TESTER LEAD CAPTURE & DEMO SESSION */
+let tester = JSON.parse(localStorage.getItem('syw_demo_tester') || 'null');
+
+function updateTesterUI(){
+  if (tester) {
+    document.getElementById('demoAuthCard').style.display = 'none';
+    document.getElementById('demoActiveArea').style.display = 'block';
+    document.getElementById('currentTesterName').textContent = tester.name;
+  } else {
+    document.getElementById('demoAuthCard').style.display = 'block';
+    document.getElementById('demoActiveArea').style.display = 'none';
+  }
+}
+updateTesterUI();
+
+document.getElementById('leadForm').onsubmit = function(e){
+  e.preventDefault();
+  const name = document.getElementById('leadName').value.trim();
+  const email = document.getElementById('leadEmail').value.trim();
+  if (!name || !email) return;
+
+  tester = { name, email, startedAt: new Date().toISOString() };
+  localStorage.setItem('syw_demo_tester', JSON.stringify(tester));
+
+  // Save captured lead quietly to Firebase Firestore
+  if (db) {
+    db.collection('demo_leads').add({
+      name,
+      email,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      userAgent: navigator.userAgent
+    }).catch(()=>{});
+  }
+
+  updateTesterUI();
+};
+
+function resetDemoUser(){
+  localStorage.removeItem('syw_demo_tester');
+  tester = null;
+  updateTesterUI();
+}
+
+/* DEMO ENTRIES */
+let mockEntries = [
+  {
+    name: "David Vance",
+    type: "Evening",
+    time: "19:42",
+    date: "Today",
+    pts: "+5 pts",
+    status: "On time",
+    body: "<b>Completed:</b><br>• Sent 50 cold outbounds via Loom audits<br>• Closed $3,500 retainer client<br><b>Proof:</b> <span style='color:var(--yellow);'>https://loom.com/share/case-study</span><br><b>Learned:</b> Specific offer beats generic marketing."
+  },
+  {
+    name: "Sarah Jenkins",
+    type: "Morning",
+    time: "07:55",
+    date: "Today",
+    pts: "+5 pts",
+    status: "On time",
+    body: "<b>Top priorities:</b><br>• Complete onboarding for 4 new community members<br>• Host weekly mastermind Q&A<br><b>Time committing:</b> 4 hours"
+  },
+  {
+    name: "Marcus Thorne",
+    type: "Evening",
+    time: "18:20",
+    date: "Today",
+    pts: "+5 pts",
+    status: "On time",
+    body: "<b>Completed:</b><br>• 25 prospecting calls completed<br>• 3 booked strategy meetings<br><b>Proof:</b> CRM Pipeline screenshot attached<br><b>Learned:</b> Speed to lead determines close rate."
+  }
+];
+
+function renderDemoLog(){
+  const list = document.getElementById('demoLogList');
+  if (!list) return;
+  list.innerHTML = mockEntries.map(e => `
+    <div class="entry">
+      <div class="entry-top">
+        <div>
+          <span class="entry-name">${e.name}</span>
+          <span class="entry-meta"> · ${e.type} · ${e.time} · ${e.date}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="badge ontime">${e.status}</span>
+          <span class="entry-points">${e.pts}</span>
+        </div>
+      </div>
+      <div class="entry-body">${e.body}</div>
+    </div>
+  `).join('');
+}
+renderDemoLog();
+
+function renderDemoLeaderboard(){
+  const card = document.getElementById('demoLbCard');
+  if (!card) return;
+  const board = [
+    { rank: 1, name: "David Vance", pts: 58 },
+    { rank: 2, name: "Sarah Jenkins", pts: 55 },
+    { rank: 3, name: "Marcus Thorne", pts: 50 },
+    { rank: 4, name: "Elena Rostova", pts: 48 }
+  ];
+  card.innerHTML = `
+    <div style="text-align:center;padding:10px 0 24px;border-bottom:1px solid var(--line);margin-bottom:20px;">
+      <div style="font-size:28px;">🏆</div>
+      <div style="font-size:12px;text-transform:uppercase;color:var(--gray);margin:4px 0;">Current Leader — Wins General Session Mic</div>
+      <div style="font-family:'Archivo Black',sans-serif;font-size:22px;color:var(--yellow);">${board[0].name}</div>
+      <div class="mono" style="color:var(--gray);font-size:13px;margin-top:4px;">${board[0].pts} / 60 pts</div>
+    </div>
+    ${board.map(b=>`
+      <div class="lb-row">
+        <div class="lb-rank ${b.rank===1?'top':''}">${b.rank}</div>
+        <div class="lb-name">${b.name}</div>
+        <div class="lb-bar-wrap"><div class="lb-bar" style="width:${(b.pts/60)*100}%"></div></div>
+        <div class="lb-pts">${b.pts}/60</div>
+      </div>
+    `).join('')}
+  `;
+}
+renderDemoLeaderboard();
+
+function submitDemoCheckin(type){
+  if (!tester) return;
+  const now = new Date();
+  const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  
+  if (type === 'morning') {
+    const p = document.getElementById('amPriorities').value.trim();
+    const t = document.getElementById('amTime').value.trim();
+    if (!p) { alert('Type your top priorities.'); return; }
+    
+    mockEntries.unshift({
+      name: tester.name + " (You)",
+      type: "Morning",
+      time: timeStr,
+      date: "Just now",
+      pts: "+5 pts",
+      status: "On time",
+      body: `<b>Top priorities:</b><br>${p.replace(/\n/g,'<br>')}<br><b>Time committing:</b> ${t || '2 hours'}`
+    });
+    
+    document.getElementById('amSharePreview').innerHTML = `
+      <div style="background:var(--panel-2);padding:10px 14px;border-radius:8px;font-size:12px;border:1px solid var(--line);">
+        ✅ <b>Clocked in successfully!</b> Check the <b>Live Feed</b> tab to see your post broadcasted.
+      </div>
+    `;
+  } else {
+    const acc = document.getElementById('pmAccomplished').value.trim();
+    const proof = document.getElementById('pmProof').value.trim();
+    const les = document.getElementById('pmLesson').value.trim();
+    if (!acc) { alert('Type what you completed.'); return; }
+    
+    mockEntries.unshift({
+      name: tester.name + " (You)",
+      type: "Evening",
+      time: timeStr,
+      date: "Just now",
+      pts: "+5 pts",
+      status: "On time",
+      body: `<b>Completed:</b><br>${acc.replace(/\n/g,'<br>')}<br><b>Proof:</b> ${proof || 'Verified by lead'}<br><b>Learned:</b> ${les || 'Consistency compounds.'}`
+    });
+
+    document.getElementById('pmSharePreview').innerHTML = `
+      <div style="background:var(--panel-2);padding:10px 14px;border-radius:8px;font-size:12px;border:1px solid var(--line);">
+        ✅ <b>Evening proof uploaded!</b> Your entry is now on the <b>Live Feed</b>.
+      </div>
+    `;
+  }
+  
+  renderDemoLog();
+}
+
+/* ROI CALCULATOR */
+function calculateROI(){
+  const members = parseFloat(document.getElementById('calcMembers').value) || 0;
+  const fee = parseFloat(document.getElementById('calcFee').value) || 0;
+  
+  const monthlyRevenue = members * fee;
+  const churnSaved = Math.round(monthlyRevenue * 0.10 * 0.20);
+  const annualSaved = churnSaved * 12;
+
+  document.getElementById('roiSaved').textContent = `$${churnSaved.toLocaleString()}`;
+  document.getElementById('roiAnnual').textContent = `$${annualSaved.toLocaleString()}`;
+}
+calculateROI();
+
+/* ============================================================
+   CONSISTENCY CALENDARS & MATRIX ENGINE
+   ============================================================ */
+const matrixData = {
+  david: {
+    name: "David Vance",
+    streak: 22,
+    onTimeRate: 96,
+    totalPoints: 58,
+    days: [
+      'ontime','ontime','ontime','ontime','ontime','ontime','rest',
+      'ontime','late','ontime','ontime','ontime','ontime','rest',
+      'ontime','ontime','ontime','ontime','ontime','ontime','rest',
+      'ontime','ontime','ontime','ontime','ontime','ontime','rest',
+      'ontime','ontime'
+    ]
+  },
+  sarah: {
+    name: "Sarah Jenkins",
+    streak: 11,
+    onTimeRate: 88,
+    totalPoints: 55,
+    days: [
+      'ontime','ontime','late','ontime','ontime','ontime','rest',
+      'ontime','ontime','ontime','missed','ontime','ontime','rest',
+      'ontime','ontime','late','ontime','ontime','ontime','rest',
+      'ontime','ontime','ontime','ontime','ontime','ontime','rest',
+      'ontime','ontime'
+    ]
+  },
+  marcus: {
+    name: "Marcus Thorne",
+    streak: 6,
+    onTimeRate: 78,
+    totalPoints: 50,
+    days: [
+      'ontime','late','ontime','ontime','missed','ontime','rest',
+      'ontime','ontime','late','ontime','ontime','ontime','rest',
+      'missed','ontime','ontime','ontime','late','ontime','rest',
+      'ontime','ontime','ontime','ontime','ontime','ontime','rest',
+      'ontime','ontime'
+    ]
+  },
+  elena: {
+    name: "Elena Rostova",
+    streak: 15,
+    onTimeRate: 91,
+    totalPoints: 48,
+    days: [
+      'ontime','ontime','ontime','ontime','ontime','ontime','rest',
+      'ontime','ontime','late','ontime','ontime','ontime','rest',
+      'ontime','ontime','ontime','ontime','ontime','ontime','rest',
+      'missed','ontime','ontime','ontime','ontime','ontime','rest',
+      'ontime','ontime'
+    ]
+  },
+  tester: {
+    name: "Tester (You)",
+    streak: 8,
+    onTimeRate: 92,
+    totalPoints: 45,
+    days: [
+      'ontime','ontime','ontime','ontime','ontime','ontime','rest',
+      'ontime','ontime','late','ontime','ontime','ontime','rest',
+      'ontime','ontime','ontime','ontime','ontime','ontime','rest',
+      'ontime','ontime','ontime','today','future','future','rest',
+      'future','future'
+    ]
+  }
+};
+
+const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function buildCalendarHtml(memberKey, isPersonal){
+  const data = matrixData[memberKey] || matrixData.tester;
+  let html = dayNames.map(d=>`<div class="cal-head-day">${d}</div>`).join('');
+  
+  data.days.forEach((status, i)=>{
+    const dayNum = i + 1;
+    let icon = '✓';
+    let cls = status;
+    if (status === 'ontime') { icon = '✓'; }
+    else if (status === 'late') { icon = '⚠'; }
+    else if (status === 'missed') { icon = '✕'; }
+    else if (status === 'rest') { icon = '🛌'; }
+    else if (status === 'today') { 
+      icon = (testerHasClockedToday ? '✓' : '⏱');
+      cls = 'today ' + (testerHasClockedToday ? 'ontime' : '');
+    }
+    else if (status === 'future') { icon = '—'; }
+    
+    html += `
+      <div class="cal-cell ${cls}" title="Day ${dayNum}: ${status}">
+        <span class="date-num">${dayNum}</span>
+        <span class="icon">${icon}</span>
+      </div>
+    `;
+  });
+  return html;
+}
+
+let testerHasClockedToday = false;
+
+function renderPersonalCalendar(){
+  const grid = document.getElementById('personalCalGrid');
+  if (!grid) return;
+  grid.innerHTML = buildCalendarHtml('tester', true);
+  const streakEl = document.getElementById('personalStreakDays');
+  if (streakEl) streakEl.textContent = (matrixData.tester.streak + (testerHasClockedToday ? 1 : 0)) + ' Days';
+}
+
+function renderMatrixCalendar(){
+  const container = document.getElementById('matrixMemberList');
+  if (!container) return;
+  
+  const memberKeys = ['tester', 'david', 'sarah', 'marcus', 'elena'];
+  
+  container.innerHTML = memberKeys.map(key => {
+    const data = matrixData[key];
+    const isYou = key === 'tester';
+    const streak = isYou ? (data.streak + (testerHasClockedToday ? 1 : 0)) : data.streak;
+    const nameDisplay = isYou ? (tester ? `${tester.name} (You)` : 'Tester (You)') : data.name;
+    const badgeClass = data.onTimeRate >= 90 ? 'ontime' : 'late';
+    const missedCount = data.days.filter(d=>d==='missed').length;
+    
+    return `
+      <div class="card cal-wrap" style="margin-bottom:20px;${isYou ? 'border-color:var(--yellow);' : ''}">
+        <div class="cal-header">
+          <div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <h3 style="margin:0;font-size:16px;">${nameDisplay}</h3>
+              <span class="badge ${badgeClass}">${data.onTimeRate}% On-Time</span>
+              ${isYou ? '<span class="logo-tag">ACTIVE TESTER</span>' : ''}
+            </div>
+            <div style="font-size:12px;color:var(--gray);margin-top:4px;">
+              ${missedCount > 0 ? `<b style="color:var(--red);">${missedCount} missed day${missedCount===1?'':'s'}</b> this month` : '<b style="color:var(--green);">0 missed days</b> · Perfect attendance'}
+            </div>
+          </div>
+          <div class="cal-stats">
+            <span class="cal-pill">🔥 Streak: <b style="color:var(--yellow);">${streak} Days</b></span>
+            <span class="cal-pill">🏆 Score: <b style="color:var(--yellow);">${data.totalPoints} pts</b></span>
+          </div>
+        </div>
+        <div class="cal-grid">
+          ${buildCalendarHtml(key, isYou)}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Hook into submitDemoCheckin so today's cell turns green on clock-in
+const originalSubmitDemoCheckin = submitDemoCheckin;
+submitDemoCheckin = function(type){
+  originalSubmitDemoCheckin(type);
+  testerHasClockedToday = true;
+  renderPersonalCalendar();
+  renderMatrixCalendar();
+};
+
+// Also hook updateTesterUI to refresh personal calendar when user logs in
+const originalUpdateTesterUI = updateTesterUI;
+updateTesterUI = function(){
+  originalUpdateTesterUI();
+  renderPersonalCalendar();
+  renderMatrixCalendar();
+};
+
+renderPersonalCalendar();
+renderMatrixCalendar();
+</script>
+</body>
+</html>
